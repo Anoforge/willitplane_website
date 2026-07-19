@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Will It Plane</title>
+  <meta name="description" content="Will It Plane — viewers choose an object, and we plane it. Destruction-based maker entertainment with cinematic slow-motion replay." />
+  <link rel="icon" type="image/png" href="WIP_logo_hazard.png" />
+  <style>
+    :root {
+      --bg: #11100e;
+      --bg-2: #1a1712;
+      --accent: #f5a623;
+      --accent-2: #e05200;
+      --text: #f3f0ea;
+      --muted: #b8b2a6;
+      --card: rgba(255,255,255,0.05);
+      --card-hover: rgba(245,166,35,0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow-x: hidden;
+    }
+
+    canvas#bg-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .logo {
+      width: 180px;
+      height: auto;
+      max-width: 70vw;
+      margin-bottom: 1.25rem;
+      filter: drop-shadow(0 8px 24px rgba(0,0,0,0.5));
+    }
+
+    h1 {
+      font-size: clamp(2.4rem, 8vw, 4rem);
+      line-height: 1;
+      margin: 0 0 0.75rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      text-shadow: 0 2px 0 #000, 0 0 30px rgba(245,166,35,0.25);
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+
+    h1 canvas {
+      display: block;
+      width: 100%;
+    }
+
+    h1 .hint {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-top: 0.5rem;
+      text-shadow: none;
+    }
+
+    .tagline {
+      font-size: clamp(1.1rem, 3.6vw, 1.45rem);
+      color: var(--text);
+      margin: 0 0 1rem;
+      font-weight: 600;
+    }
+
+    .about {
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 560px;
+      margin: 0 0 2rem;
+    }
+
+    .links {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 620px;
+      margin-bottom: 2.5rem;
+    }
+
+    .link-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 700;
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .link-btn:hover,
+    .link-btn:focus-visible {
+      background: var(--card-hover);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(245,166,35,0.18);
+      border-color: rgba(245,166,35,0.35);
+      outline: none;
+    }
+
+    .link-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+      flex-shrink: 0;
+    }
+
+    .submit-section {
+      width: 100%;
+      max-width: 540px;
+      background: linear-gradient(180deg, rgba(245,166,35,0.08), rgba(224,82,0,0.05));
+      border: 1px solid rgba(245,166,35,0.18);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .submit-section h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.25rem;
+      color: var(--accent);
+    }
+
+    .submit-section p {
+      margin: 0 0 1rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+      margin-bottom: 0.9rem;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      color: var(--text);
+    }
+
+    .form-group input,
+    .form-group textarea {
+      padding: 0.7rem 0.9rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.25);
+      color: var(--text);
+      font: inherit;
+      font-size: 1rem;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(245,166,35,0.15);
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 0.9rem;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #1a1205;
+      font-weight: 900;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: transform 0.15s ease, filter 0.2s ease;
+    }
+
+    .submit-btn:hover,
+    .submit-btn:focus-visible {
+      transform: translateY(-2px);
+      filter: brightness(1.08);
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      canvas#bg-canvas,
+      h1 canvas { display: none !important; }
+      h1 { background: none; -webkit-text-fill-color: var(--accent); }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <main class="wrap">
+    <img class="logo" src="WIP_logo_hazard.png" alt="Will It Plane logo" width="360" />
+
+    <h1 id="headline" aria-label="Will It Plane?">
+      <canvas id="text-canvas"></canvas>
+      <span class="hint">Click to plane it away</span>
+    </h1>
+
+    <p class="tagline">Will it plane? Let's find out.</p>
+    <p class="about">
+      Will It Plane is a live-content entertainment brand built around one addictive premise:
+      viewers choose an object, and we plane it. Real-time woodworking, chaotic experimentation,
+      and cinematic slow-motion destruction — all shaped by the community.
+    </p>
+
+    <nav class="links" aria-label="Social and streaming links">
+      <a class="link-btn" href="https://www.tiktok.com/@willitplane" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-2.2 0-4.4 0-6.6.01-.23 0-.47.02-.7z"/></svg>
+        TikTok
+      </a>
+      <a class="link-btn" href="https://www.youtube.com/@WillItPlane" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.38.55A3.02 3.02 0 0 0 .5 6.19 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.81 3.02 3.02 0 0 0 2.12 2.14c1.88.55 9.38.55 9.38.55s7.5 0 9.38-.55a3.02 3.02 0 0 0 2.12-2.14A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.81zM9.55 15.5V8.5l6.27 3.5-6.27 3.5z"/></svg>
+        YouTube
+      </a>
+      <a class="link-btn" href="https://www.instagram.com/willitplane/" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85 0 3.2-.01 3.58-.07 4.85-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.65.07-4.85.07-3.2 0-3.58-.01-4.85-.07-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.65-.07-4.85 0-3.2.01-3.58.07-4.85C2.38 3.85 3.9 2.31 7.15 2.16 8.42 2.1 8.8 2.1 12 2.1zm0 1.8c-3.15 0-3.52.01-4.76.07-2.43.11-3.78 1.46-3.89 3.89-.05 1.24-.06 1.6-.06 4.76s.01 3.52.06 4.76c.11 2.43 1.46 3.78 3.89 3.89 1.24.05 1.61.06 4.76.06 3.15 0 3.52-.01 4.76-.06 2.43-.11 3.78-1.46 3.89-3.89.05-1.24.06-1.61.06-4.76s-.01-3.52-.06-4.76c-.11-2.43-1.46-3.78-3.89-3.89C15.52 3.97 15.15 3.96 12 3.96zM12 7a5 5 0 1 0 .001 10.001A5 5 0 0 0 12 7zm0 8.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4zm5.2-8.6a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/></svg>
+        Instagram
+      </a>
+      <a class="link-btn" href="https://x.com/willitplane" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        X
+      </a>
+      <a class="link-btn" href="https://www.facebook.com/profile.php?id=61592142986689" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M24 12.07C24 5.41 18.63 0 12 0S0 5.41 0 12.07C0 18.1 4.39 23.1 10.12 24v-8.44H7.08v-3.49h3.04V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
+        Facebook
+      </a>
+      <a class="link-btn" href="https://www.twitch.tv/willitplane" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.57 2 2 7.46v10.82h5.82V24l7.58-6.12h2.36L22 11.18V2H11.57zm8.6 8.72-2.64 3.36H14.5l-3.58 3.04v-3.04H9.18V3.82h10.99v6.9z"/><path d="M16.8 5.68h-1.45v4.18h1.45V5.68zM13.35 5.68h-1.45v4.18h1.45V5.68z"/></svg>
+        Twitch
+      </a>
+      <a class="link-btn" href="https://kick.com/willitplane" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2h16c1.1 0 2 .9 2 2v16c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2zm4.2 4.8v9.6h3.6v-2.4h2.4v2.4h3.6V7.2H12v2.4H9.6V7.2H8.2z"/></svg>
+        Kick
+      </a>
+      <a class="link-btn" href="https://discord.com/channels/1528040982002798763/1528040983122546841" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.32 4.37A19.8 19.8 0 0 0 15.49 2c-.25.45-.47.91-.67 1.38a18.4 18.4 0 0 0-5.53 0c-.2-.47-.42-.93-.67-1.38A19.8 19.8 0 0 0 3.68 4.37C1.3 8.33.72 12.23 1.04 16.1c1.95 1.44 4.12 2.53 6.47 3.22.52-.7.98-1.45 1.36-2.24-.74-.28-1.45-.62-2.12-1.02.18-.13.35-.27.51-.41a13.4 13.4 0 0 0 11.48 0c.17.14.34.28.51.41-.67.4-1.38.74-2.12 1.02.38.79.84 1.54 1.36 2.24 2.35-.69 4.52-1.78 6.47-3.22.38-4.47-.64-8.33-2.74-11.73zM8.68 13.48c-1.06 0-1.93-.98-1.93-2.18 0-1.2.85-2.18 1.93-2.18 1.08 0 1.95.99 1.93 2.18 0 1.2-.85 2.18-1.93 2.18zm6.64 0c-1.06 0-1.93-.98-1.93-2.18 0-1.2.85-2.18 1.93-2.18 1.08 0 1.95.99 1.93 2.18 0 1.2-.85 2.18-1.93 2.18z"/></svg>
+        Discord
+      </a>
+      <a class="link-btn" href="https://www.reddit.com/user/Will_It_Plane/" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.74c.69 0 1.25.56 1.25 1.25a1.25 1.25 0 0 1-2.51 0 1.25 1.25 0 0 1 1.26-1.25zm-5.01 3.49c1.99 0 3.74.95 4.85 2.42.83-.2 1.72-.31 2.65-.31 1.08 0 2.12.14 3.1.41a2.7 2.7 0 0 1 1.76-2.66A2.7 2.7 0 0 1 23.41 8c0 1.06-.63 1.98-1.54 2.42.21.71.33 1.46.33 2.23 0 3.74-4.39 6.77-9.8 6.77-5.41 0-9.8-3.03-9.8-6.77 0-.77.12-1.52.33-2.23A2.7 2.7 0 0 1 1.8 7.35 2.7 2.7 0 0 1 4.5 4.69a2.7 2.7 0 0 1 1.76 2.66c.98-.27 2.02-.41 3.1-.41.93 0 1.82.11 2.65.31 1.11-1.47 2.86-2.42 4.85-2.42zm-5.09 4.36c-.79 0-1.43.64-1.43 1.43 0 .79.64 1.43 1.43 1.43.79 0 1.43-.64 1.43-1.43 0-.79-.64-1.43-1.43-1.43zm7.18 3.96c-.57.57-1.55.85-2.88.85h-.02c-1.33 0-2.31-.28-2.88-.85-.23-.23-.23-.6 0-.83.22-.22.59-.22.82 0 .34.34 1 .51 2.06.51s1.72-.17 2.06-.51c.23-.22.6-.22.82 0 .23.23.23.6 0 .83zm-.21-3.96c-.79 0-1.43.64-1.43 1.43 0 .79.64 1.43 1.43 1.43.79 0 1.43-.64 1.43-1.43 0-.79-.64-1.43-1.43-1.43z"/></svg>
+        Reddit
+      </a>
+      <a class="link-btn" href="mailto:willitplane@gmail.com" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        Email
+      </a>
+      <a class="link-btn" href="https://www.willitplane.com" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        Website
+      </a>
+    </nav>
+
+    <section class="submit-section" aria-labelledby="submit-heading">
+      <h2 id="submit-heading">Submit an object to be planed</h2>
+      <p>Got something weird, satisfying, or strangely dangerous? Suggest it here.</p>
+      <form id="submit-form">
+        <div class="form-group">
+          <label for="object">Object to plane</label>
+          <input type="text" id="object" name="object" placeholder="e.g. a deck of cards" required />
+        </div>
+        <div class="form-group">
+          <label for="suggested-by">Suggested by (optional)</label>
+          <input type="text" id="suggested-by" name="suggestedBy" placeholder="Your name or social handle" />
+        </div>
+        <div class="form-group">
+          <label for="notes">Notes (optional)</label>
+          <textarea id="notes" name="notes" rows="3" placeholder="Why this object? Any safety concerns?"></textarea>
+        </div>
+        <button type="submit" class="submit-btn">Send suggestion</button>
+      </form>
+    </section>
+
+    <footer class="footer">
+      © 2026 Will It Plane. All rights reserved. <a href="mailto:willitplane@gmail.com">willitplane@gmail.com</a>
+    </footer>
+  </main>
+
+  <script src="effects.js"></script>
+</body>
+</html>
