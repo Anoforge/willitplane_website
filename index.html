@@ -70,11 +70,23 @@
       cursor: pointer;
       user-select: none;
       position: relative;
+      width: 100%;
+      overflow: visible;
     }
 
     h1 canvas {
       display: block;
-      width: 100%;
+      width: 100vw;
+      max-width: 720px;
+      height: auto;
+      margin: 0 calc(-50vw + 50%);
+    }
+
+    @media (min-width: 760px) {
+      h1 canvas {
+        margin: 0;
+        width: 100%;
+      }
     }
 
     h1 .hint {

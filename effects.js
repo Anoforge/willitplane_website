@@ -108,17 +108,20 @@
     let width, height;
 
     function setCanvasSize() {
-      const rect = headline.getBoundingClientRect();
-      width = Math.max(320, Math.min(rect.width, window.innerWidth - 40));
-      height = Math.max(100, fontSize * 1.6);
-      textCanvas.width = Math.floor(width);
-      textCanvas.height = Math.floor(height);
+      const viewportW = window.innerWidth;
+      const maxWidth = Math.min(720, viewportW - 32); // full wrap width with small padding
+      width = Math.floor(maxWidth);
+      height = Math.max(120, fontSize * 1.8);
+      textCanvas.width = width;
+      textCanvas.height = height;
       sampleText();
     }
 
     function sampleText() {
       ctx.clearRect(0, 0, width, height);
-      ctx.font = `900 ${fontSize}px system-ui, -apple-system, sans-serif`;
+      const scale = Math.min(1, (width - 24) / 560); // fit text into available width; 560 is rough measure for 72px text
+      const drawSize = Math.max(42, Math.floor(fontSize * scale));
+      ctx.font = `900 ${drawSize}px system-ui, -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#f5a623';
@@ -168,7 +171,9 @@
 
     function drawIntact() {
       ctx.clearRect(0, 0, width, height);
-      ctx.font = `900 ${fontSize}px system-ui, -apple-system, sans-serif`;
+      const scale = Math.min(1, (width - 24) / 560);
+      const drawSize = Math.max(42, Math.floor(fontSize * scale));
+      ctx.font = `900 ${drawSize}px system-ui, -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#f5a623';
@@ -259,7 +264,9 @@
         const eased = easeOutCubic(progress);
 
         ctx.clearRect(0, 0, width, height);
-        ctx.font = `900 ${fontSize}px system-ui, -apple-system, sans-serif`;
+      const scale = Math.min(1, (width - 24) / 560);
+      const drawSize = Math.max(42, Math.floor(fontSize * scale));
+      ctx.font = `900 ${drawSize}px system-ui, -apple-system, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
