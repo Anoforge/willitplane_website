@@ -240,7 +240,8 @@
   if (textCanvas && headline && !prefersReducedMotion) {
     const ctx = textCanvas.getContext('2d', { willReadFrequently: true });
     const text = 'Will It Plane?';
-    const fontSize = 72;
+    const baseFontSize = 80;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     let destroyed = false;
     let animating = false;
     let textPixels = [];
@@ -249,9 +250,11 @@
 
     function setCanvasSize() {
       const viewportW = window.innerWidth;
-      const maxWidth = Math.min(720, viewportW - 32); // full wrap width with small padding
-      width = Math.floor(maxWidth);
-      height = Math.max(120, fontSize * 1.8);
+      const cssWidth = Math.min(680, viewportW - 32);
+      width = Math.floor(cssWidth * dpr);
+      height = Math.floor(Math.max(110, baseFontSize * 1.6) * dpr);
+      textCanvas.style.width = `${cssWidth}px`;
+      textCanvas.style.height = `${height / dpr}px`;
       textCanvas.width = width;
       textCanvas.height = height;
       sampleText();
@@ -259,24 +262,29 @@
 
     function sampleText() {
       ctx.clearRect(0, 0, width, height);
-      const scale = Math.min(1, (width - 24) / 560); // fit text into available width; 560 is rough measure for 72px text
-      const drawSize = Math.max(42, Math.floor(fontSize * scale));
-      ctx.font = `900 ${drawSize}px system-ui, -apple-system, sans-serif`;
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      const cssW = width / dpr;
+      const cssH = height / dpr;
+      const scale = Math.min(1, (cssW - 24) / 560);
+      const drawSize = Math.max(44, Math.floor(baseFontSize * scale));
+      ctx.font = `900 ${drawSize}px system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#f5a623';
-      ctx.fillText(text, width / 2, height / 2);
+      ctx.fillText(text, cssW / 2, cssH / 2);
+      ctx.restore();
 
       const imageData = ctx.getImageData(0, 0, width, height);
       const data = imageData.data;
       textPixels = [];
 
-      const step = 3;
+      const step = Math.max(2, Math.floor(3 * dpr));
       for (let y = 0; y < height; y += step) {
         for (let x = 0; x < width; x += step) {
           const i = (y * width + x) * 4;
           const alpha = data[i + 3];
-          if (alpha > 128) {
+          if (alpha > 140) {
             textPixels.push({
               sx: x,
               sy: y,
@@ -299,11 +307,15 @@
       return 1 - Math.pow(1 - t, 3);
     }
 
+    function easeInOutQuint(t) {
+      return t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2;
+    }
+
     function drawTextPixel(p, progress) {
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(p.rot);
-      ctx.globalAlpha = p.alpha * (1 - progress * 0.85);
+      ctx.globalAlpha = p.alpha * (1 - progress * 0.9);
       ctx.fillStyle = p.color;
       ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
       ctx.restore();
@@ -311,23 +323,28 @@
 
     function drawIntact() {
       ctx.clearRect(0, 0, width, height);
-      const scale = Math.min(1, (width - 24) / 560);
-      const drawSize = Math.max(42, Math.floor(fontSize * scale));
-      ctx.font = `900 ${drawSize}px system-ui, -apple-system, sans-serif`;
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      const cssW = width / dpr;
+      const cssH = height / dpr;
+      const scale = Math.min(1, (cssW - 24) / 560);
+      const drawSize = Math.max(44, Math.floor(baseFontSize * scale));
+      ctx.font = `900 ${drawSize}px system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#f5a623';
-      ctx.shadowColor = 'rgba(245, 166, 35, 0.35)';
-      ctx.shadowBlur = 20;
-      ctx.fillText(text, width / 2, height / 2);
+      ctx.shadowColor = 'rgba(245, 166, 35, 0.25)';
+      ctx.shadowBlur = 22;
+      ctx.fillText(text, cssW / 2, cssH / 2);
       ctx.shadowBlur = 0;
+      ctx.restore();
     }
 
     function animateDestroy() {
       animating = true;
       const start = performance.now();
-      const duration = 1400;
-      const chipCount = isTouch ? 120 : 220;
+      const duration = 1600;
+      const chipCount = isTouch ? 100 : 180;
 
       chipParticles = [];
       for (let i = 0; i < chipCount; i++) {
@@ -395,7 +412,7 @@
 
     function rebuildText() {
       const start = performance.now();
-      const duration = 700;
+      const duration = 900;
       const target = textPixels.map(p => ({ sx: p.sx, sy: p.sy, x: p.x, y: p.y, vx: p.vx, vy: p.vy, rot: p.rot, vRot: p.vRot, color: p.color, alpha: p.alpha, size: p.size }));
 
       function frame(now) {
