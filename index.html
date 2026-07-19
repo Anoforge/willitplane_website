@@ -227,6 +227,21 @@
       filter: brightness(1.08);
     }
 
+    .submit-btn:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
+    .form-status {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+      min-height: 1.4em;
+      font-weight: 600;
+    }
+
+    .form-status.success { color: #7fd96b; }
+    .form-status.error { color: #ff7a7a; }
+
     .footer {
       color: var(--muted);
       font-size: 0.85rem;
@@ -325,7 +340,8 @@
           <label for="notes">Notes (optional)</label>
           <textarea id="notes" name="notes" rows="3" placeholder="Why this object? Any safety concerns?"></textarea>
         </div>
-        <button type="submit" class="submit-btn">Send suggestion</button>
+        <button type="submit" class="submit-btn" id="submit-btn">Send suggestion</button>
+        <div class="form-status" id="form-status" aria-live="polite"></div>
       </form>
     </section>
 

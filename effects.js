@@ -326,8 +326,13 @@
      Submit form mailto handler
      -------------------------- */
   const form = document.getElementById('submit-form');
+  const submitBtn = document.getElementById('submit-btn');
+  const formStatus = document.getElementById('form-status');
+
+  const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1528412213079969995/SU_a2B0nzkQuaLW1krkD3gOWxHJlhCYVHAw4Ptz7iLh-6lg-6qhqNkNA-UcU8Y9DFJtz';
+
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = new FormData(form);
       const object = data.get('object')?.toString().trim();
@@ -336,14 +341,56 @@
 
       if (!object) return;
 
-      const subject = encodeURIComponent(`Suggestion: ${object}`);
-      const body = encodeURIComponent(
-        `Object to plane: ${object}\n` +
-        (suggestedBy ? `Suggested by: ${suggestedBy}\n` : '') +
-        (notes ? `\nNotes:\n${notes}` : '')
-      );
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending...';
+      if (formStatus) formStatus.textContent = '';
 
-      window.location.href = `mailto:willitplane@gmail.com?subject=${subject}&body=${body}`;
+      const payload = {
+        username: 'Will It Plane Suggestions',
+        avatar_url: 'https://www.willitplane.com/WIP_logo_hazard.png',
+        embeds: [{
+          title: 'New object suggestion',
+          color: 16098851, // #f5a623
+          fields: [
+            { name: 'Object to plane', value: object, inline: false },
+          ],
+          footer: { text: 'Submitted via willitplane.com' },
+          timestamp: new Date().toISOString(),
+        }],
+      };
+
+      if (suggestedBy) {
+        payload.embeds[0].fields.push({ name: 'Suggested by', value: suggestedBy, inline: true });
+      }
+      if (notes) {
+        payload.embeds[0].fields.push({ name: 'Notes', value: notes, inline: false });
+      }
+
+      try {
+        const res = await fetch(DISCORD_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          form.reset();
+          if (formStatus) {
+            formStatus.textContent = 'Suggestion sent — thanks!';
+            formStatus.className = 'form-status success';
+          }
+        } else {
+          throw new Error(`Discord responded with ${res.status}`);
+        }
+      } catch (err) {
+        if (formStatus) {
+          formStatus.textContent = 'Could not send. Try again or email us directly.';
+          formStatus.className = 'form-status error';
+        }
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send suggestion';
+      }
     });
   }
 })();
