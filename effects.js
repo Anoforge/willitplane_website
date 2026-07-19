@@ -463,13 +463,55 @@
   }
 
   /* --------------------------
-     Submit form mailto handler
+     Submit form handler
      -------------------------- */
   const form = document.getElementById('submit-form');
   const submitBtn = document.getElementById('submit-btn');
   const formStatus = document.getElementById('form-status');
 
   const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1528412213079969995/SU_a2B0nzkQuaLW1krkD3gOWxHJlhCYVHAw4Ptz7iLh-6lg-6qhqNkNA-UcU8Y9DFJtz';
+  const DAILY_LIMIT = 3;
+  const RATE_LIMIT_KEY = 'wip-suggestion-rate';
+
+  function getRateLimitState() {
+    const raw = localStorage.getItem(RATE_LIMIT_KEY);
+    if (!raw) return { date: '', count: 0 };
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return { date: '', count: 0 };
+    }
+  }
+
+  function setRateLimitState(state) {
+    localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(state));
+  }
+
+  function getToday() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function canSubmitToday() {
+    const state = getRateLimitState();
+    const today = getToday();
+    if (state.date !== today) {
+      setRateLimitState({ date: today, count: 0 });
+      return { ok: true, remaining: DAILY_LIMIT };
+    }
+    const remaining = Math.max(0, DAILY_LIMIT - state.count);
+    return { ok: remaining > 0, remaining };
+  }
+
+  function recordSubmission() {
+    const today = getToday();
+    const state = getRateLimitState();
+    if (state.date !== today) {
+      setRateLimitState({ date: today, count: 1 });
+    } else {
+      state.count += 1;
+      setRateLimitState(state);
+    }
+  }
 
   /* --------------------------
      Effects toggle UI
@@ -495,16 +537,44 @@
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      if (formStatus) {
+        formStatus.textContent = '';
+        formStatus.className = 'form-status';
+      }
+
       const data = new FormData(form);
       const object = data.get('object')?.toString().trim();
       const suggestedBy = data.get('suggestedBy')?.toString().trim();
       const notes = data.get('notes')?.toString().trim();
 
-      if (!object) return;
+      if (!object) {
+        if (formStatus) {
+          formStatus.textContent = 'Please enter an object to plane.';
+          formStatus.className = 'form-status error';
+        }
+        return;
+      }
+
+      if (object.length > 120) {
+        if (formStatus) {
+          formStatus.textContent = 'Object name is too long (max 120 characters).';
+          formStatus.className = 'form-status error';
+        }
+        return;
+      }
+
+      const rate = canSubmitToday();
+      if (!rate.ok) {
+        if (formStatus) {
+          formStatus.textContent = `Daily suggestion limit reached (${DAILY_LIMIT}/${DAILY_LIMIT}). Try again tomorrow.`;
+          formStatus.className = 'form-status error';
+        }
+        return;
+      }
 
       submitBtn.disabled = true;
       submitBtn.textContent = 'Sending...';
-      if (formStatus) formStatus.textContent = '';
 
       const payload = {
         username: 'Will It Plane Suggestions',
@@ -521,10 +591,10 @@
       };
 
       if (suggestedBy) {
-        payload.embeds[0].fields.push({ name: 'Suggested by', value: suggestedBy, inline: true });
+        payload.embeds[0].fields.push({ name: 'Suggested by', value: suggestedBy.slice(0, 80), inline: true });
       }
       if (notes) {
-        payload.embeds[0].fields.push({ name: 'Notes', value: notes, inline: false });
+        payload.embeds[0].fields.push({ name: 'Notes', value: notes.slice(0, 500), inline: false });
       }
 
       try {
@@ -535,9 +605,11 @@
         });
 
         if (res.ok) {
+          recordSubmission();
           form.reset();
+          const remaining = rate.remaining - 1;
           if (formStatus) {
-            formStatus.textContent = 'Suggestion sent — thanks!';
+            formStatus.textContent = `Suggestion sent — thanks! ${remaining} remaining today.`;
             formStatus.className = 'form-status success';
           }
         } else {
