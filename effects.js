@@ -98,7 +98,7 @@
   const headline = document.getElementById('headline');
 
   if (textCanvas && headline && !prefersReducedMotion) {
-    const ctx = textCanvas.getContext('2d');
+    const ctx = textCanvas.getContext('2d', { willReadFrequently: true });
     const text = 'Will It Plane?';
     const fontSize = 72;
     let destroyed = false;
