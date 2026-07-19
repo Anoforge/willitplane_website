@@ -257,6 +257,56 @@
       cursor: wait;
     }
 
+    .countdown {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 480px;
+      margin: 0 0 2rem;
+    }
+
+    .countdown-unit {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 1rem 0.5rem;
+      text-align: center;
+    }
+
+    .countdown-value {
+      display: block;
+      font-size: clamp(1.8rem, 6vw, 2.6rem);
+      font-weight: 900;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .countdown-label {
+      display: block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-top: 0.35rem;
+    }
+
+    .countdown-heading {
+      margin: 0 0 0.75rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+    }
+
+    .countdown-live {
+      color: var(--accent);
+      font-size: 1.25rem;
+      font-weight: 900;
+      margin: 0 0 2rem;
+    }
+
     .form-status {
       margin-top: 0.75rem;
       font-size: 0.9rem;
@@ -313,6 +363,14 @@
       viewers choose an object, and we plane it. Real-time woodworking, chaotic experimentation,
       and cinematic slow-motion destruction — all shaped by the community.
     </p>
+
+    <p class="countdown-heading">First video drops in</p>
+    <div class="countdown" id="countdown" aria-label="Countdown to first video release">
+      <div class="countdown-unit"><span class="countdown-value" id="cd-days">0</span><span class="countdown-label">Days</span></div>
+      <div class="countdown-unit"><span class="countdown-value" id="cd-hours">0</span><span class="countdown-label">Hours</span></div>
+      <div class="countdown-unit"><span class="countdown-value" id="cd-minutes">0</span><span class="countdown-label">Minutes</span></div>
+      <div class="countdown-unit"><span class="countdown-value" id="cd-seconds">0</span><span class="countdown-label">Seconds</span></div>
+    </div>
 
     <nav class="links" aria-label="Social and streaming links">
       <a class="link-btn" href="https://www.tiktok.com/@willitplane" target="_blank" rel="noopener noreferrer">
@@ -391,5 +449,49 @@
   <button id="effects-toggle" class="effects-toggle" type="button" aria-pressed="true" title="Turn particle effects off">Effects: on</button>
 
   <script src="effects.js"></script>
+  <script>
+    (() => {
+      // First Will It Plane video release: August 7, 2026 at 12:00 PM EDT (UTC-4)
+      const target = new Date('2026-08-07T16:00:00Z');
+      const container = document.getElementById('countdown');
+      const els = {
+        days: document.getElementById('cd-days'),
+        hours: document.getElementById('cd-hours'),
+        minutes: document.getElementById('cd-minutes'),
+        seconds: document.getElementById('cd-seconds'),
+      };
+
+      function pad(n) {
+        return String(n).padStart(2, '0');
+      }
+
+      function update() {
+        const now = Date.now();
+        const diff = target - now;
+
+        if (diff <= 0) {
+          container.style.display = 'none';
+          const live = document.createElement('p');
+          live.className = 'countdown-live';
+          live.textContent = 'The first Will It Plane video is live!';
+          container.parentNode.insertBefore(live, container.nextSibling);
+          return;
+        }
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((diff / (1000 * 60)) % 60);
+        const seconds = Math.floor((diff / 1000) % 60);
+
+        els.days.textContent = days;
+        els.hours.textContent = pad(hours);
+        els.minutes.textContent = pad(minutes);
+        els.seconds.textContent = pad(seconds);
+      }
+
+      update();
+      setInterval(update, 1000);
+    })();
+  </script>
 </body>
 </html>
