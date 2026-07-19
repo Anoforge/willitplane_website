@@ -88,7 +88,7 @@ The form posts to a Discord webhook configured in `effects.js`.
 ## Security notes
 
 - This is a static site with no backend or database.
-- The Discord webhook URL is visible in the public `effects.js` file. A determined user could spam it.
+- The suggestion form uses a Discord webhook with client-side validation and rate limiting.
 - Client-side protections are in place:
   - Empty submissions are blocked.
   - Object names are limited to 120 characters.
