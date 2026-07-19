@@ -277,6 +277,18 @@
       text-decoration: none;
     }
 
+    .disclaimer {
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1.5;
+      max-width: 560px;
+      margin: 0 auto 1rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      background: rgba(0,0,0,0.2);
+    }
+
     @media (prefers-reduced-motion: reduce) {
       canvas#bg-canvas,
       h1 canvas { display: none !important; }
@@ -367,6 +379,11 @@
     </section>
 
     <footer class="footer">
+      <p class="disclaimer">
+        <strong>Do not attempt.</strong> All planing is performed in a controlled
+        environment by experienced makers using proper safety equipment.
+        Power tools can cause severe injury or death. Do not try this at home.
+      </p>
       © 2026 Will It Plane. All rights reserved. <a href="mailto:willitplane@gmail.com">willitplane@gmail.com</a>
     </footer>
   </main>
