@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Page not found — Will It Plane</title>
+  <meta name="description" content="That page got planed. Head back to Will It Plane." />
+  <link rel="canonical" href="https://www.willitplane.com/404.html" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#11100e" />
+  <style>
+    :root {
+      --bg: #11100e;
+      --text: #f3f0ea;
+      --muted: #b8b2a6;
+      --accent: #f5a623;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      overflow-x: hidden;
+    }
+    canvas#bg-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 4rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      min-height: 100vh;
+      justify-content: center;
+    }
+    .logo {
+      width: 140px;
+      height: auto;
+      margin-bottom: 1.5rem;
+      opacity: 0;
+      transform: scale(0.96) translateY(10px);
+      animation: logoFadeIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    @keyframes logoFadeIn {
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    h1 {
+      font-size: clamp(4rem, 15vw, 8rem);
+      margin: 0;
+      line-height: 1;
+      color: var(--accent);
+      font-weight: 900;
+    }
+    p {
+      color: var(--muted);
+      font-size: 1.15rem;
+      max-width: 420px;
+      margin: 1rem 0 2rem;
+      line-height: 1.5;
+    }
+    .home-link {
+      display: inline-block;
+      padding: 0.85rem 1.5rem;
+      border-radius: 12px;
+      background: rgba(245, 166, 35, 0.12);
+      border: 1px solid rgba(245, 166, 35, 0.35);
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+      transition: transform 0.15s ease, background 0.2s ease;
+    }
+    .home-link:hover,
+    .home-link:focus-visible {
+      transform: translateY(-3px);
+      background: rgba(245, 166, 35, 0.2);
+      outline: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      canvas#bg-canvas { display: none !important; }
+      .logo { animation: none; opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <main class="wrap">
+    <img class="logo" src="/WIP_logo_hazard.png" alt="Will It Plane logo" width="280" />
+    <h1>404</h1>
+    <p>Looks like this page got planed a little too hard. It doesn't exist anymore.</p>
+    <a class="home-link" href="/">Back to the workshop</a>
+  </main>
+
+  <script src="/effects.js"></script>
+</body>
+</html>
