@@ -10,7 +10,11 @@
   const bgCanvas = document.getElementById('bg-canvas');
   const bgCtx = bgCanvas.getContext('2d');
   let bgW, bgH;
-  let mouse = { x: -1000, y: -1000 };
+  let mouse = { x: -1000, y: -1000, vx: 0, vy: 0, lastX: -1000, lastY: -1000 };
+  let effectsEnabled = localStorage.getItem('wip-effects') !== 'off';
+  let particleCount = effectsEnabled ? (isTouch ? 55 : 110) : 0;
+  let particles = [];
+  let blasts = [];
 
   function resizeBg() {
     bgW = window.innerWidth;
@@ -19,66 +23,189 @@
     bgCanvas.height = Math.floor(bgH);
   }
 
+  const PALETTES = {
+    dust:  ['rgba(244,164,96,', 'rgba(210,180,140,', 'rgba(222,184,135,'],
+    chip:  ['rgba(245,166,35,', 'rgba(224,130,50,', 'rgba(194,120,60,'],
+    spark: ['rgba(255,200,120,', 'rgba(255,160,80,'],
+  };
+
   class Particle {
-    constructor() {
-      this.reset(true);
+    constructor(x, y, typeOverride) {
+      this.type = typeOverride || (Math.random() < 0.75 ? 'dust' : (Math.random() < 0.8 ? 'chip' : 'spark'));
+      this.reset(true, x, y);
     }
 
-    reset(initial = false) {
-      this.x = Math.random() * bgW;
-      this.y = initial ? Math.random() * bgH : -10;
-      this.size = Math.random() * 2.5 + 0.8;
-      this.speedY = Math.random() * 0.8 + 0.2;
-      this.speedX = (Math.random() - 0.5) * 0.6;
-      this.rotation = Math.random() * Math.PI * 2;
-      this.rotationSpeed = (Math.random() - 0.5) * 0.08;
-      this.opacity = Math.random() * 0.45 + 0.15;
-      this.color = Math.random() > 0.5
-        ? `rgba(244,164,96,${this.opacity})`
-        : `rgba(210,180,140,${this.opacity})`;
+    reset(initial = false, spawnX, spawnY) {
+      this.x = spawnX != null ? spawnX : Math.random() * bgW;
+      this.y = spawnY != null ? spawnY : (initial ? Math.random() * bgH : -12);
+
+      if (this.type === 'dust') {
+        this.size = Math.random() * 2 + 0.6;
+        this.speedY = Math.random() * 0.9 + 0.25;
+        this.speedX = (Math.random() - 0.5) * 0.7;
+        this.rotation = Math.random() * Math.PI * 2;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.06;
+        this.opacity = Math.random() * 0.4 + 0.12;
+      } else if (this.type === 'chip') {
+        this.size = Math.random() * 5 + 2.5;
+        this.speedY = Math.random() * 1.4 + 0.6;
+        this.speedX = (Math.random() - 0.5) * 1.1;
+        this.rotation = Math.random() * Math.PI * 2;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.18;
+        this.opacity = Math.random() * 0.55 + 0.25;
+      } else {
+        this.size = Math.random() * 1.6 + 0.4;
+        this.speedY = Math.random() * 0.6 + 0.15;
+        this.speedX = (Math.random() - 0.5) * 0.5;
+        this.rotation = Math.random() * Math.PI * 2;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.2;
+        this.opacity = Math.random() * 0.55 + 0.35;
+      }
+
+      const palette = PALETTES[this.type];
+      this.colorBase = palette[Math.floor(Math.random() * palette.length)];
       this.life = 1;
-      this.decay = Math.random() * 0.001 + 0.0005;
+      this.decay = this.type === 'spark' ? 0.006 : (Math.random() * 0.0012 + 0.0004);
     }
 
     update() {
       this.y += this.speedY;
-      this.x += this.speedX + Math.sin(this.y * 0.01) * 0.2;
+      this.x += this.speedX + Math.sin(this.y * 0.012) * 0.25;
       this.rotation += this.rotationSpeed;
 
+      // Mouse turbulence with stronger swirl
       const dx = this.x - mouse.x;
       const dy = this.y - mouse.y;
       const dist = Math.hypot(dx, dy);
-      if (dist < 80) {
-        const force = (80 - dist) / 80;
-        this.x += (dx / dist) * force * 2;
-        this.y += (dy / dist) * force * 2;
+      if (dist < 160) {
+        const force = (160 - dist) / 160;
+        const push = 3.5 * force;
+        this.x += (dx / (dist + 1)) * push;
+        this.y += (dy / (dist + 1)) * push;
+        this.speedX += (dx / (dist + 1)) * force * 0.15;
+        this.speedY += (dy / (dist + 1)) * force * 0.15;
+
+        // Add wake from fast mouse movement
+        const wake = Math.hypot(mouse.vx, mouse.vy);
+        if (wake > 6) {
+          this.speedX += mouse.vx * 0.015 * force;
+          this.speedY += mouse.vy * 0.015 * force;
+        }
       }
 
+      // Blast interactions
+      for (const blast of blasts) {
+        const bdx = this.x - blast.x;
+        const bdy = this.y - blast.y;
+        const bDist = Math.hypot(bdx, bdy);
+        if (bDist < blast.radius) {
+          const bForce = (blast.radius - bDist) / blast.radius;
+          const bPush = blast.strength * bForce;
+          this.x += (bdx / (bDist + 1)) * bPush;
+          this.y += (bdy / (bDist + 1)) * bPush;
+          this.speedX += (bdx / (bDist + 1)) * bForce * 2;
+          this.speedY += (bdy / (bDist + 1)) * bForce * 2;
+          this.rotationSpeed += bForce * 0.3;
+        }
+      }
+
+      // Gentle flow away from central content column
+      const centerX = bgW / 2;
+      const fromCenter = this.x - centerX;
+      if (Math.abs(fromCenter) < 180 && this.y > 120 && this.y < bgH - 80) {
+        const nudge = (fromCenter > 0 ? 1 : -1) * 0.06;
+        this.speedX += nudge;
+      }
+
+      // Damping
+      this.speedX *= 0.995;
+      this.speedY *= 0.998;
+
       this.life -= this.decay;
-      if (this.y > bgH + 10 || this.life <= 0) this.reset();
+      if (this.y > bgH + 20 || this.life <= 0 || this.x < -20 || this.x > bgW + 20) {
+        this.reset();
+      }
     }
 
     draw(ctx) {
       ctx.save();
       ctx.translate(this.x, this.y);
       ctx.rotate(this.rotation);
-      ctx.fillStyle = this.color;
+      ctx.fillStyle = this.colorBase + (this.opacity * this.life) + ')';
       ctx.globalAlpha = this.life;
-      ctx.fillRect(-this.size / 2, -this.size / 4, this.size, this.size / 2);
+
+      if (this.type === 'dust') {
+        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+      } else if (this.type === 'chip') {
+        ctx.beginPath();
+        ctx.ellipse(0, 0, this.size, this.size * 0.45, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     }
   }
 
-  const particleCount = isTouch ? 40 : 80;
-  const particles = Array.from({ length: particleCount }, () => new Particle());
+  function spawnBlast(x, y) {
+    blasts.push({ x, y, radius: 10, maxRadius: 220, strength: 8, life: 1 });
+    const spawnCount = isTouch ? 18 : 32;
+    for (let i = 0; i < spawnCount; i++) {
+      const type = Math.random() < 0.7 ? 'chip' : (Math.random() < 0.6 ? 'dust' : 'spark');
+      const p = new Particle(x, y, type);
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * 5 + 2;
+      p.speedX = Math.cos(angle) * speed;
+      p.speedY = Math.sin(angle) * speed;
+      p.rotationSpeed = (Math.random() - 0.5) * 0.5;
+      particles.push(p);
+    }
+    // Trim back to target count after the blast settles
+    while (particles.length > particleCount) particles.shift();
+  }
 
   function animateBg() {
+    if (!effectsEnabled) return;
     bgCtx.clearRect(0, 0, bgW, bgH);
+
+    // Update blasts
+    for (let i = blasts.length - 1; i >= 0; i--) {
+      const b = blasts[i];
+      b.radius += (b.maxRadius - b.radius) * 0.12;
+      b.strength *= 0.92;
+      b.life -= 0.025;
+      if (b.life <= 0 || b.strength < 0.1) blasts.splice(i, 1);
+    }
+
+    // Track mouse velocity
+    mouse.vx = mouse.x - mouse.lastX;
+    mouse.vy = mouse.y - mouse.lastY;
+    mouse.lastX = mouse.x;
+    mouse.lastY = mouse.y;
+
     for (const p of particles) {
       p.update();
       p.draw(bgCtx);
     }
     requestAnimationFrame(animateBg);
+  }
+
+  function setEffectsEnabled(enabled) {
+    effectsEnabled = enabled;
+    localStorage.setItem('wip-effects', enabled ? 'on' : 'off');
+    if (enabled) {
+      particleCount = isTouch ? 55 : 110;
+      while (particles.length < particleCount) particles.push(new Particle());
+      animateBg();
+    } else {
+      particleCount = 0;
+      particles = [];
+      blasts = [];
+      bgCtx.clearRect(0, 0, bgW, bgH);
+    }
+    updateToggleUI();
   }
 
   if (!prefersReducedMotion && bgCanvas) {
@@ -88,7 +215,20 @@
       mouse.x = e.clientX;
       mouse.y = e.clientY;
     }, { passive: true });
-    animateBg();
+    window.addEventListener('click', (e) => {
+      if (effectsEnabled) spawnBlast(e.clientX, e.clientY);
+    });
+    window.addEventListener('touchstart', (e) => {
+      if (effectsEnabled && e.touches.length) {
+        const t = e.touches[0];
+        spawnBlast(t.clientX, t.clientY);
+      }
+    }, { passive: true });
+
+    if (effectsEnabled) {
+      particles = Array.from({ length: particleCount }, () => new Particle());
+      animateBg();
+    }
   }
 
   /* --------------------------
@@ -330,6 +470,27 @@
   const formStatus = document.getElementById('form-status');
 
   const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1528412213079969995/SU_a2B0nzkQuaLW1krkD3gOWxHJlhCYVHAw4Ptz7iLh-6lg-6qhqNkNA-UcU8Y9DFJtz';
+
+  /* --------------------------
+     Effects toggle UI
+     -------------------------- */
+  function updateToggleUI() {
+    const btn = document.getElementById('effects-toggle');
+    if (!btn) return;
+    const on = localStorage.getItem('wip-effects') !== 'off';
+    btn.setAttribute('aria-pressed', String(on));
+    btn.textContent = on ? 'Effects: on' : 'Effects: off';
+    btn.title = on ? 'Turn particle effects off' : 'Turn particle effects on';
+  }
+
+  const toggleBtn = document.getElementById('effects-toggle');
+  if (toggleBtn) {
+    updateToggleUI();
+    toggleBtn.addEventListener('click', () => {
+      const currentlyOn = localStorage.getItem('wip-effects') !== 'off';
+      setEffectsEnabled(!currentlyOn);
+    });
+  }
 
   if (form) {
     form.addEventListener('submit', async (e) => {

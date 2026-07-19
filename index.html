@@ -176,6 +176,31 @@
       font-size: 0.95rem;
     }
 
+    .effects-toggle {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      z-index: 10;
+      padding: 0.45rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(0,0,0,0.45);
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+      transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .effects-toggle:hover,
+    .effects-toggle:focus-visible {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: rgba(0,0,0,0.6);
+      outline: none;
+    }
+
     .form-group {
       display: flex;
       flex-direction: column;
@@ -349,6 +374,8 @@
       © 2026 Will It Plane. All rights reserved. <a href="mailto:willitplane@gmail.com">willitplane@gmail.com</a>
     </footer>
   </main>
+
+  <button id="effects-toggle" class="effects-toggle" type="button" aria-pressed="true" title="Turn particle effects off">Effects: on</button>
 
   <script src="effects.js"></script>
 </body>
