@@ -164,16 +164,107 @@
       margin-bottom: 2rem;
     }
 
-    .submit-section h2 {
+    .submit-section h2,
+    .vote-section h2 {
       margin: 0 0 0.5rem;
       font-size: 1.25rem;
       color: var(--accent);
     }
 
-    .submit-section p {
+    .submit-section p,
+    .vote-section p {
       margin: 0 0 1rem;
       color: var(--muted);
       font-size: 0.95rem;
+    }
+
+    .vote-section {
+      width: 100%;
+      max-width: 540px;
+      background: linear-gradient(180deg, rgba(224,82,0,0.08), rgba(245,166,35,0.05));
+      border: 1px solid rgba(224,82,0,0.18);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .vote-object {
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: var(--text);
+      margin: 0 0 1rem;
+    }
+
+    .vote-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .vote-btn {
+      padding: 0.9rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: var(--card);
+      color: var(--text);
+      font-weight: 900;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .vote-btn:hover,
+    .vote-btn:focus-visible {
+      transform: translateY(-2px);
+      outline: none;
+    }
+
+    .vote-btn.yes {
+      border-color: rgba(127,217,107,0.35);
+    }
+    .vote-btn.yes:hover,
+    .vote-btn.yes:focus-visible {
+      background: rgba(127,217,107,0.12);
+      border-color: rgba(127,217,107,0.6);
+      color: #7fd96b;
+    }
+
+    .vote-btn.no {
+      border-color: rgba(255,122,122,0.35);
+    }
+    .vote-btn.no:hover,
+    .vote-btn.no:focus-visible {
+      background: rgba(255,122,122,0.12);
+      border-color: rgba(255,122,122,0.6);
+      color: #ff7a7a;
+    }
+
+    .vote-results {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      text-align: center;
+    }
+
+    .vote-result {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 0.75rem;
+    }
+
+    .vote-result-value {
+      display: block;
+      font-size: 1.4rem;
+      font-weight: 900;
+    }
+
+    .vote-result-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
     }
 
     .effects-toggle {
@@ -415,6 +506,21 @@
       </a>
     </nav>
 
+    <section class="vote-section" aria-labelledby="vote-heading">
+      <h2 id="vote-heading">Object of the week</h2>
+      <p>Will it plane? Cast your vote on this week's object.</p>
+      <div class="vote-object" id="vote-object">Loading...</div>
+      <div class="vote-actions">
+        <button class="vote-btn yes" type="button" id="vote-yes" aria-label="Vote yes, it will plane">Yes, it will plane</button>
+        <button class="vote-btn no" type="button" id="vote-no" aria-label="Vote no, it will not plane">No, it won't</button>
+      </div>
+      <div class="vote-results" id="vote-results" aria-live="polite">
+        <div class="vote-result"><span class="vote-result-value" id="vote-yes-count">—</span><span class="vote-result-label">Will plane</span></div>
+        <div class="vote-result"><span class="vote-result-value" id="vote-no-count">—</span><span class="vote-result-label">Won't plane</span></div>
+      </div>
+      <div class="form-status" id="vote-status"></div>
+    </section>
+
     <section class="submit-section" aria-labelledby="submit-heading">
       <h2 id="submit-heading">Submit an object to be planed</h2>
       <p>Got something weird, satisfying, or strangely dangerous? Suggest it here.</p>
@@ -447,6 +553,81 @@
   </main>
 
   <button id="effects-toggle" class="effects-toggle" type="button" aria-pressed="true" title="Turn particle effects off">Effects: on</button>
+
+  <script>
+    const WORKER_URL = 'https://willitplane-votes.YOUR_SUBDOMAIN.workers.dev';
+    const CURRENT_OBJECT = 'TBA';
+
+    (() => {
+      const voteObjectEl = document.getElementById('vote-object');
+      const yesBtn = document.getElementById('vote-yes');
+      const noBtn = document.getElementById('vote-no');
+      const yesCountEl = document.getElementById('vote-yes-count');
+      const noCountEl = document.getElementById('vote-no-count');
+      const voteStatus = document.getElementById('vote-status');
+      const storageKey = `wip-vote:${CURRENT_OBJECT}`;
+
+      async function fetchResults() {
+        try {
+          const res = await fetch(`${WORKER_URL}/results?object=${encodeURIComponent(CURRENT_OBJECT)}`);
+          if (!res.ok) throw new Error('Network response was not ok');
+          const data = await res.json();
+          voteObjectEl.textContent = data.object || CURRENT_OBJECT;
+          yesCountEl.textContent = data.yes ?? 0;
+          noCountEl.textContent = data.no ?? 0;
+        } catch {
+          voteObjectEl.textContent = CURRENT_OBJECT;
+          yesCountEl.textContent = '—';
+          noCountEl.textContent = '—';
+        }
+      }
+
+      async function submitVote(vote) {
+        if (localStorage.getItem(storageKey)) {
+          voteStatus.textContent = 'You already voted on this object.';
+          voteStatus.className = 'form-status error';
+          return;
+        }
+
+        yesBtn.disabled = true;
+        noBtn.disabled = true;
+        voteStatus.textContent = 'Casting vote...';
+        voteStatus.className = 'form-status';
+
+        try {
+          const res = await fetch(`${WORKER_URL}/vote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ object: CURRENT_OBJECT, vote }),
+          });
+          const data = await res.json();
+
+          if (res.ok) {
+            localStorage.setItem(storageKey, vote);
+            yesCountEl.textContent = data.yes ?? 0;
+            noCountEl.textContent = data.no ?? 0;
+            voteStatus.textContent = 'Vote recorded — thanks!';
+            voteStatus.className = 'form-status success';
+          } else {
+            throw new Error(data.error || 'Vote failed');
+          }
+        } catch (err) {
+          voteStatus.textContent = err.message || 'Could not record vote. Try again later.';
+          voteStatus.className = 'form-status error';
+        } finally {
+          yesBtn.disabled = false;
+          noBtn.disabled = false;
+        }
+      }
+
+      if (voteObjectEl) {
+        fetchResults();
+        setInterval(fetchResults, 30000);
+        yesBtn?.addEventListener('click', () => submitVote('yes'));
+        noBtn?.addEventListener('click', () => submitVote('no'));
+      }
+    })();
+  </script>
 
   <script src="effects.js"></script>
   <script>
