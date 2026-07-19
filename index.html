@@ -683,6 +683,11 @@
 
   <script src="effects.js"></script>
   <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    }
+  </script>
+  <script>
     (() => {
       // First Will It Plane video release: August 7, 2026 at 12:00 PM EDT (UTC-4)
       const target = new Date('2026-08-07T16:00:00Z');
