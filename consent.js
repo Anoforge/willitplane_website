@@ -14,19 +14,44 @@
     catch (e) { /* ignore private-mode / storage errors */ }
   }
 
+  function gtag() {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push(arguments);
+  }
+  // Make gtag available globally early, before the Google tag script loads.
+  window.gtag = gtag;
+
+  function sendConsentDefault(state) {
+    // 1. Set the default consent state BEFORE the Google tag loads/configures.
+    gtag('consent', 'default', {
+      analytics_storage: state,
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied'
+    });
+  }
+
+  function sendConsentUpdate(state) {
+    // 4. Update consent when the user makes or changes a choice.
+    gtag('consent', 'update', {
+      analytics_storage: state,
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied'
+    });
+  }
+
   function loadGA() {
     if (window.__gaLoaded) return;
     window.__gaLoaded = true;
 
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { window.dataLayer.push(arguments); }
-    window.gtag = gtag;
-
+    // 2. Load the Google tag script.
     const script = document.createElement('script');
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
     document.head.appendChild(script);
 
+    // 3. Initialize and configure the tag.
     gtag('js', new Date());
     gtag('config', GA_ID);
   }
@@ -122,22 +147,32 @@
     document.getElementById('consent-accept').addEventListener('click', () => {
       setConsent('granted');
       loadGA();
+      sendConsentUpdate('granted');
       banner.remove();
     });
     document.getElementById('consent-decline').addEventListener('click', () => {
       setConsent('denied');
+      sendConsentUpdate('denied');
       banner.remove();
     });
   }
 
   function init() {
     const consent = getConsent();
+
+    // Always set default consent first, before the Google tag loads.
+    sendConsentDefault('denied');
+
     if (consent === 'granted') {
+      // Already accepted: load tag, configure, then update to granted.
       loadGA();
-    } else if (consent !== 'denied') {
+      sendConsentUpdate('granted');
+    } else if (consent === 'denied') {
+      // Previously declined: tag stays unloaded; default denied is already set.
+    } else {
+      // No choice yet: show the banner.
       showBanner();
     }
-    // if 'denied', do nothing — GA stays unloaded
   }
 
   if (document.readyState === 'loading') {
