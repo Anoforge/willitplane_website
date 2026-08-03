@@ -463,6 +463,7 @@
 
     setCanvasSize();
     drawIntact();
+    headline.classList.add('canvas-ready');
     window.addEventListener('resize', () => {
       setCanvasSize();
       drawIntact();

@@ -108,16 +108,31 @@
       overflow: visible;
     }
 
-    h1 canvas {
+    .headline-text {
       display: block;
+    }
+
+    h1.canvas-ready .headline-text {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    h1 canvas {
+      display: none;
       width: 100vw;
       max-width: 680px;
       height: auto;
       margin: 0 calc(-50vw + 50%);
     }
 
+    h1.canvas-ready canvas {
+      display: block;
+    }
+
     @media (min-width: 760px) {
-      h1 canvas {
+      h1 canvas,
+      h1.canvas-ready canvas {
         margin: 0;
         width: 100%;
       }
@@ -479,8 +494,16 @@
 
     @media (prefers-reduced-motion: reduce) {
       canvas#bg-canvas,
-      h1 canvas { display: none !important; }
+      h1 canvas,
+      h1.canvas-ready canvas { display: none !important; }
       h1 { background: none; -webkit-text-fill-color: var(--accent); }
+      h1 .headline-text,
+      h1.canvas-ready .headline-text {
+        position: static;
+        opacity: 1;
+        color: var(--accent);
+        -webkit-text-fill-color: var(--accent);
+      }
       .logo {
         animation: none;
         opacity: 1;
@@ -496,7 +519,8 @@
     <img class="logo" src="WIP_logo_hazard.png" alt="Will It Plane logo" width="360" />
 
     <h1 id="headline" aria-label="Will It Plane?">
-      <canvas id="text-canvas"></canvas>
+      <span class="headline-text">Will It Plane?</span>
+      <canvas id="text-canvas" aria-hidden="true"></canvas>
       <span class="hint">Click to plane it away</span>
     </h1>
 
