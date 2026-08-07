@@ -542,7 +542,7 @@
       worth watching.
     </p>
 
-    <p class="countdown-heading">First video drops in</p>
+    <p class="countdown-heading">Our first video</p>
     <div class="countdown" id="countdown" aria-label="Countdown to first video release">
       <div class="countdown-unit"><span class="countdown-value" id="cd-days">0</span><span class="countdown-label">Days</span></div>
       <div class="countdown-unit"><span class="countdown-value" id="cd-hours">0</span><span class="countdown-label">Hours</span></div>
@@ -650,7 +650,7 @@
 
   <script>
     const WORKER_URL = 'https://blue-wind-c7c2.willitplane.workers.dev';
-    const CURRENT_OBJECT = 'A deck of cards';
+    const CURRENT_OBJECT = 'Beehive';
 
     (() => {
       const voteObjectEl = document.getElementById('vote-object');
@@ -746,16 +746,24 @@
         return String(n).padStart(2, '0');
       }
 
+      let timerId = null;
+
       function update() {
         const now = Date.now();
         const diff = target - now;
 
         if (diff <= 0) {
           container.style.display = 'none';
-          const live = document.createElement('p');
-          live.className = 'countdown-live';
-          live.textContent = 'The first Will It Plane video is live!';
-          container.parentNode.insertBefore(live, container.nextSibling);
+          if (!container.parentNode.querySelector('.countdown-live')) {
+            const live = document.createElement('p');
+            live.className = 'countdown-live';
+            live.innerHTML = '<a href="https://youtube.com/shorts/7Zhe5nfm_PM?si=2lBNB4Lnh7XMN1ip" target="_blank" rel="noopener noreferrer">The first Will It Plane video is live! Watch it on YouTube →</a>';
+            container.parentNode.insertBefore(live, container.nextSibling);
+          }
+          if (timerId) {
+            clearInterval(timerId);
+            timerId = null;
+          }
           return;
         }
 
@@ -771,7 +779,7 @@
       }
 
       update();
-      setInterval(update, 1000);
+      timerId = setInterval(update, 1000);
     })();
   </script>
 </body>
