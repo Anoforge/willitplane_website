@@ -1,4 +1,4 @@
-const CACHE_NAME = 'willitplane-v1.3.1';
+const CACHE_NAME = 'willitplane-v1.3.2';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -11,7 +11,9 @@ const PRECACHE_URLS = [
   '/favicon-32x32.png',
   '/apple-touch-icon.png',
   '/android-chrome-192x192.png',
-  '/android-chrome-512x512.png'
+  '/android-chrome-512x512.png',
+  '/android-chrome-maskable-192x192.png',
+  '/android-chrome-maskable-512x512.png'
 ];
 
 self.addEventListener('install', (event) => {
