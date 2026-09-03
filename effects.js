@@ -421,9 +421,6 @@
         const eased = easeOutCubic(progress);
 
         ctx.clearRect(0, 0, width, height);
-      const scale = Math.min(1, (width - 24) / 560);
-      const drawSize = Math.max(42, Math.floor(fontSize * scale));
-      ctx.font = `900 ${drawSize}px system-ui, -apple-system, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
@@ -487,7 +484,7 @@
   const submitBtn = document.getElementById('submit-btn');
   const formStatus = document.getElementById('form-status');
 
-  const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1528412213079969995/SU_a2B0nzkQuaLW1krkD3gOWxHJlhCYVHAw4Ptz7iLh-6lg-6qhqNkNA-UcU8Y9DFJtz';
+  const WORKER_URL = 'https://blue-wind-c7c2.willitplane.workers.dev';
   const DAILY_LIMIT = 3;
   const RATE_LIMIT_KEY = 'wip-suggestion-rate';
 
@@ -595,34 +592,21 @@
       submitBtn.textContent = 'Sending...';
 
       const payload = {
-        username: 'Will It Plane Suggestions',
-        avatar_url: 'https://www.willitplane.com/WIP_logo_hazard.png',
-        embeds: [{
-          title: 'New object suggestion',
-          color: 16098851, // #f5a623
-          fields: [
-            { name: 'Object to plane', value: object, inline: false },
-          ],
-          footer: { text: 'Submitted via willitplane.com' },
-          timestamp: new Date().toISOString(),
-        }],
+        object,
+        suggestedBy: suggestedBy || undefined,
+        notes: notes || undefined,
       };
 
-      if (suggestedBy) {
-        payload.embeds[0].fields.push({ name: 'Suggested by', value: suggestedBy.slice(0, 80), inline: true });
-      }
-      if (notes) {
-        payload.embeds[0].fields.push({ name: 'Notes', value: notes.slice(0, 500), inline: false });
-      }
-
       try {
-        const res = await fetch(DISCORD_WEBHOOK_URL, {
+        const res = await fetch(`${WORKER_URL}/suggest`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
 
-        if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok && data.ok) {
           recordSubmission();
           form.reset();
           const remaining = rate.remaining - 1;
@@ -630,8 +614,13 @@
             formStatus.textContent = `Suggestion sent — thanks! ${remaining} remaining today.`;
             formStatus.className = 'form-status success';
           }
+        } else if (res.status === 429) {
+          if (formStatus) {
+            formStatus.textContent = data.error || 'Daily suggestion limit reached. Try again tomorrow.';
+            formStatus.className = 'form-status error';
+          }
         } else {
-          throw new Error(`Discord responded with ${res.status}`);
+          throw new Error(data.error || `Worker responded with ${res.status}`);
         }
       } catch (err) {
         if (formStatus) {
