@@ -1,8 +1,9 @@
-const CACHE_NAME = 'willitplane-v1.3.8';
+const CACHE_NAME = 'willitplane-v1.4.0';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/effects.js',
+  '/worm-game.js',
   '/WIP_logo_hazard.png',
   '/og-image.png',
   '/site.webmanifest',

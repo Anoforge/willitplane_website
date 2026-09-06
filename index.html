@@ -697,7 +697,7 @@
 
   <script>
     const WORKER_URL = 'https://blue-wind-c7c2.willitplane.workers.dev';
-    const CURRENT_OBJECT = 'Can of beans';
+    const CURRENT_OBJECT = 'Chalk';
 
     (() => {
       const voteObjectEl = document.getElementById('vote-object');
@@ -772,6 +772,12 @@
 
   <script src="effects.js"></script>
   <script src="/consent.js"></script>
+  <script src="/worm-game.js"></script>
+  <script>
+    if (typeof WormGame !== 'undefined') {
+      WormGame.init({ position: 'bottom-left' });
+    }
+  </script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js').catch(() => {});
