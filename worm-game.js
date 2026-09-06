@@ -52,7 +52,7 @@
         position: fixed;
         bottom: 1rem;
         left: 1rem;
-        z-index: 1000000;
+        z-index: 1000001;
         width: 44px;
         height: 44px;
         border-radius: 50%;
@@ -118,8 +118,7 @@
         left: 0;
         width: 100vw;
         height: 100vh;
-        z-index: 999999;
-        pointer-events: none;
+        z-index: 999998;
         display: none;
       }
       #${NS}-shield {
@@ -128,8 +127,13 @@
         left: 0;
         width: 100vw;
         height: 100vh;
-        z-index: 999990;
-        background: transparent;
+        z-index: 999999;
+        pointer-events: auto;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        background: rgba(0,0,0,0.0001);
         display: none;
       }
       #${NS}-shield[data-active="true"] {
@@ -139,7 +143,7 @@
         position: fixed;
         top: 16px;
         left: 16px;
-        z-index: 999999;
+        z-index: 1000000;
         background: rgba(17,16,14,0.85);
         color: #f3f0ea;
         border: 1px solid rgba(245,166,35,0.18);
@@ -152,7 +156,7 @@
         position: fixed;
         bottom: calc(1rem + 54px);
         left: 1rem;
-        z-index: 999999;
+        z-index: 1000000;
         max-width: 280px;
         background: rgba(17,16,14,0.92);
         color: #ff7a7a;
@@ -410,15 +414,27 @@
     toggleBtn.textContent = '🐛';
   }
 
+  function preventAndStop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
   function handleShieldTouch(e) {
     if (!running) return;
-    e.preventDefault();
+    preventAndStop(e);
     const t = e.touches[0];
-    touchTarget = { x: t.clientX, y: t.clientY };
+    if (t) touchTarget = { x: t.clientX, y: t.clientY };
+  }
+
+  function handleShieldTouchEnd(e) {
+    if (!running) return;
+    preventAndStop(e);
+    touchTarget = null;
   }
 
   function handleShieldMouseMove(e) {
     if (!running) return;
+    e.preventDefault();
     touchTarget = { x: e.clientX, y: e.clientY };
   }
 
@@ -437,15 +453,23 @@
     });
     shield.addEventListener('touchstart', handleShieldTouch, { passive: false });
     shield.addEventListener('touchmove', handleShieldTouch, { passive: false });
-    shield.addEventListener('touchend', () => {
-      touchTarget = null;
-    });
+    shield.addEventListener('touchend', handleShieldTouchEnd, { passive: false });
+    shield.addEventListener('touchcancel', handleShieldTouchEnd, { passive: false });
+    shield.addEventListener('click', (e) => {
+      if (running) preventAndStop(e);
+    }, true);
     shield.addEventListener('mousemove', handleShieldMouseMove);
     shield.addEventListener('mousedown', (e) => {
       if (!running) return;
+      preventAndStop(e);
       touchTarget = { x: e.clientX, y: e.clientY };
     });
-    shield.addEventListener('mouseup', () => {
+    shield.addEventListener('mouseup', (e) => {
+      if (!running) return;
+      preventAndStop(e);
+      touchTarget = null;
+    });
+    shield.addEventListener('mouseleave', () => {
       touchTarget = null;
     });
   }
