@@ -41,7 +41,7 @@
   let bodySprite = null;
   const WORM_SPRITE_SIZE = SEGMENT_SIZE * 2 + 12;
 
-  let canvas, ctx, toggleBtn, hud, scoreEl, debugEl;
+  let canvas, ctx, toggleBtn, hud, scoreEl, debugEl, shield;
 
   function injectStyles() {
     if (document.getElementById(NS + '-styles')) return;
@@ -122,6 +122,19 @@
         pointer-events: none;
         display: none;
       }
+      #${NS}-shield {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 999990;
+        background: transparent;
+        display: none;
+      }
+      #${NS}-shield[data-active="true"] {
+        display: block;
+      }
       #${NS}-hud {
         position: fixed;
         top: 16px;
@@ -178,6 +191,11 @@
     canvas.id = NS + '-canvas';
     document.body.appendChild(canvas);
     ctx = canvas.getContext('2d');
+
+    shield = document.createElement('div');
+    shield.id = NS + '-shield';
+    shield.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(shield);
 
     toggleBtn.addEventListener('click', () => {
       if (running) stopGame(); else startGame();
@@ -369,6 +387,7 @@
     fruits = [];
     fillFruits();
     canvas.style.display = 'block';
+    shield.setAttribute('data-active', 'true');
     hud.style.display = 'block';
     toggleBtn.setAttribute('aria-pressed', 'true');
     toggleBtn.setAttribute('aria-label', 'Stop worm game');
@@ -383,6 +402,7 @@
     cancelAnimationFrame(animId);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     canvas.style.display = 'none';
+    shield.setAttribute('data-active', 'false');
     hud.style.display = 'none';
     toggleBtn.setAttribute('aria-pressed', 'false');
     toggleBtn.setAttribute('aria-label', 'Start worm game');
@@ -390,29 +410,15 @@
     toggleBtn.textContent = '🐛';
   }
 
-  function isInteractiveTarget(el) {
-    if (!el || el === document.body || el === document.documentElement) return false;
-    if (el === toggleBtn) return true;
-    const tag = el.tagName.toLowerCase();
-    if (tag === 'button' || tag === 'a' || tag === 'input' || tag === 'textarea' || tag === 'select') return true;
-    if (el.closest && el.closest('button, a, input, textarea, select, label')) return true;
-    return false;
-  }
-
-  function handleTouch(e) {
+  function handleShieldTouch(e) {
     if (!running) return;
-    if (isInteractiveTarget(e.target)) return;
     e.preventDefault();
     const t = e.touches[0];
     touchTarget = { x: t.clientX, y: t.clientY };
   }
 
-  function handleMouseMove(e) {
+  function handleShieldMouseMove(e) {
     if (!running) return;
-    if (isInteractiveTarget(e.target)) {
-      touchTarget = null;
-      return;
-    }
     touchTarget = { x: e.clientX, y: e.clientY };
   }
 
@@ -429,18 +435,17 @@
     window.addEventListener('resize', () => {
       if (running) resizeCanvas();
     });
-    window.addEventListener('touchstart', handleTouch, { passive: false });
-    window.addEventListener('touchmove', handleTouch, { passive: false });
-    window.addEventListener('touchend', () => {
+    shield.addEventListener('touchstart', handleShieldTouch, { passive: false });
+    shield.addEventListener('touchmove', handleShieldTouch, { passive: false });
+    shield.addEventListener('touchend', () => {
       touchTarget = null;
     });
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mousedown', (e) => {
+    shield.addEventListener('mousemove', handleShieldMouseMove);
+    shield.addEventListener('mousedown', (e) => {
       if (!running) return;
-      if (isInteractiveTarget(e.target)) return;
       touchTarget = { x: e.clientX, y: e.clientY };
     });
-    window.addEventListener('mouseup', () => {
+    shield.addEventListener('mouseup', () => {
       touchTarget = null;
     });
   }
