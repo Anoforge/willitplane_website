@@ -20,11 +20,14 @@
   const ROUGH_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/rough.js/2.1.1/rough.umd.min.js';
 
   const SEGMENT_SIZE = 14;
-  const SPEED = 3.2;
+  const BASE_SPEED = 3.2;
+  const MAX_SPEED = 7;
   const TURN_RATE = 0.08;
   const FRUIT_COUNT = 6;
   const FRUIT_RADIUS = 8;
   const EAT_DISTANCE = 16;
+  const SELF_COLLISION_SKIP = 6;
+  const GROWTH_PER_FRUIT = 3;
 
   let initialized = false;
   let running = false;
@@ -42,6 +45,8 @@
   const WORM_SPRITE_SIZE = SEGMENT_SIZE * 2 + 12;
 
   let canvas, ctx, toggleBtn, hud, scoreEl, debugEl, shield;
+  let highDpiScale = 1;
+  let joystick = null;
 
   function injectStyles() {
     if (document.getElementById(NS + '-styles')) return;
@@ -211,18 +216,31 @@
       callback(true);
       return;
     }
+
     const existing = document.querySelector('script[data-wip-worm-rough]');
-    if (existing) {
-      existing.addEventListener('load', () => callback(true));
-      existing.addEventListener('error', () => callback(false));
-      return;
+    if (!existing) {
+      const script = document.createElement('script');
+      script.src = ROUGH_CDN_URL;
+      script.setAttribute('data-wip-worm-rough', '1');
+      script.onload = () => callback(true);
+      script.onerror = () => callback(false);
+      document.head.appendChild(script);
     }
-    const script = document.createElement('script');
-    script.src = ROUGH_CDN_URL;
-    script.setAttribute('data-wip-worm-rough', '1');
-    script.onload = () => callback(true);
-    script.onerror = () => callback(false);
-    document.head.appendChild(script);
+
+    let attempts = 0;
+    const maxAttempts = 60;
+    const timer = setInterval(function () {
+      attempts++;
+      if (window.rough && typeof window.rough.canvas === 'function') {
+        clearInterval(timer);
+        callback(true);
+        return;
+      }
+      if (attempts >= maxAttempts) {
+        clearInterval(timer);
+        callback(false);
+      }
+    }, 100);
   }
 
   function makeSpriteCanvas(size, drawFn) {
@@ -255,8 +273,14 @@
   }
 
   function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    highDpiScale = dpr;
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
   }
 
   function resetWorm() {
@@ -298,8 +322,14 @@
     }
   }
 
+  function currentSpeed() {
+    return Math.min(BASE_SPEED + score * 0.06, MAX_SPEED);
+  }
+
   function update() {
-    if (touchTarget) {
+    if (joystick) {
+      targetAngle = joystick.angle;
+    } else if (touchTarget) {
       const head = worm[0];
       targetAngle = Math.atan2(touchTarget.y - head.y, touchTarget.x - head.x);
     } else if (keys.ArrowUp) targetAngle = -Math.PI / 2;
@@ -317,8 +347,9 @@
     }
 
     const head = worm[0];
-    let newX = head.x + Math.cos(angle) * SPEED;
-    let newY = head.y + Math.sin(angle) * SPEED;
+    const speed = currentSpeed();
+    let newX = head.x + Math.cos(angle) * speed;
+    let newY = head.y + Math.sin(angle) * speed;
 
     if (newX < 0) newX = window.innerWidth;
     if (newX > window.innerWidth) newX = 0;
@@ -337,14 +368,27 @@
         score++;
         scoreEl.textContent = score;
         const tail = worm[worm.length - 1];
-        worm.push({ x: tail.x, y: tail.y });
+        for (let g = 0; g < GROWTH_PER_FRUIT; g++) {
+          worm.push({ x: tail.x, y: tail.y });
+        }
       }
     }
+
+    for (let i = SELF_COLLISION_SKIP; i < worm.length; i++) {
+      const seg = worm[i];
+      const dx = seg.x - newX;
+      const dy = seg.y - newY;
+      if (dx * dx + dy * dy < (SEGMENT_SIZE * 0.55) * (SEGMENT_SIZE * 0.55)) {
+        stopGame();
+        return;
+      }
+    }
+
     fillFruits();
   }
 
   function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
     if (roughOk) {
       fruits.forEach(f => {
@@ -386,6 +430,7 @@
     score = 0;
     scoreEl.textContent = 0;
     debugEl.style.display = 'none';
+    joystick = null;
     resizeCanvas();
     resetWorm();
     fruits = [];
@@ -403,8 +448,9 @@
   function stopGame() {
     running = false;
     touchTarget = null;
+    joystick = null;
     cancelAnimationFrame(animId);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     canvas.style.display = 'none';
     shield.setAttribute('data-active', 'false');
     hud.style.display = 'none';
@@ -423,13 +469,22 @@
     if (!running) return;
     preventAndStop(e);
     const t = e.touches[0];
-    if (t) touchTarget = { x: t.clientX, y: t.clientY };
+    if (!t) return;
+    if (!joystick) {
+      joystick = { x: t.clientX, y: t.clientY, angle: angle };
+    }
+    const dx = t.clientX - joystick.x;
+    const dy = t.clientY - joystick.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 8) {
+      joystick.angle = Math.atan2(dy, dx);
+    }
   }
 
   function handleShieldTouchEnd(e) {
     if (!running) return;
     preventAndStop(e);
-    touchTarget = null;
+    joystick = null;
   }
 
   function handleShieldMouseMove(e) {
@@ -440,6 +495,10 @@
 
   function attachGlobalListeners() {
     window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && running) {
+        stopGame();
+        return;
+      }
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         keys[e.key] = true;
         if (running) e.preventDefault();
