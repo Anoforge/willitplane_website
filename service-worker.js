@@ -1,4 +1,4 @@
-const CACHE_NAME = 'willitplane-v1.5.1';
+const CACHE_NAME = 'willitplane-v1.5.2';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
