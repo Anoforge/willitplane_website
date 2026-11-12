@@ -1,12 +1,12 @@
 /**
- * Worm Game — drop-in easter egg overlay.
+ * Planer Game — drop-in easter egg overlay.
  *
  * Usage: include this script anywhere on a page, then call:
  *   WormGame.init();
  *
  * It creates its own DOM (toggle button, canvas, HUD), its own styles,
- * and lazy-loads its only dependency (Rough.js) from cdnjs. Nothing needs
- * to already exist on the host page — one script tag + one init() call.
+ * and loads its local game sprites. Nothing needs to already exist on the
+ * host page — one script tag + one init() call.
  *
  * Namespacing: every element/id/class this module creates is prefixed
  * with "wip-worm-" to avoid colliding with anything on the host site.
@@ -17,32 +17,58 @@
   if (window.WormGame) return; // don't double-init if the script loads twice
 
   const NS = 'wip-worm';
-  const ROUGH_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/rough.js/2.1.1/rough.umd.min.js';
+  const SCRIPT_URL = document.currentScript ? document.currentScript.src : window.location.href;
+  const SPRITE_ROOT = new URL('worm_game_sprites/', SCRIPT_URL);
 
   const SEGMENT_SIZE = 14;
-  const BASE_SPEED = 3.2;
-  const MAX_SPEED = 7;
+  const BASE_SPEED = 2.8;
+  const SPEED_PER_ITEM = 0.02;
+  const MAX_SPEED = 4.8;
+  const EAT_BOOST = 0.7;
+  const EAT_BOOST_DURATION = 450;
   const TURN_RATE = 0.08;
-  const FRUIT_COUNT = 6;
-  const FRUIT_RADIUS = 8;
-  const EAT_DISTANCE = 16;
+  const ITEM_COUNT = 6;
+  const ITEM_SIZE = 38;
+  const EAT_DISTANCE = 26;
   const SELF_COLLISION_SKIP = 6;
-  const GROWTH_PER_FRUIT = 3;
+  const GROWTH_PER_ITEM = 3;
+  const PLANER_SIZE = 54;
+  const PICKUP_TEXT_DURATION = 1200;
+  const ITEM_SPRITE_FILES = [
+    '01_banana.png', '02_deck_of_cards.png', '03_dragon_fruit.png',
+    '04_coconut.png', '05_box_of_spaghetti.png', '06_box_of_crayons.png',
+    '07_wasp_nest.png', '08_vhs.png', '09_loaf_of_bread.png',
+    '10_toilet_paper.png', '11_bone.png', '12_mushroom.png',
+    '13_shaving_cream.png', '14_egg.png', '15_light_bulb.png',
+    '16_cat_tail.png', '17_can_of_beans.png', '18_whoopee_cushion.png',
+    '19_ukulele.png', '20_pinata.png', '21_chalk.png',
+    '22_cauliflower.png', '23_corn.png', '24_potato.png',
+    '25_needoh.png', '26_pineapple.png', '27_sponge.png',
+    '28_coffee_cup.png', '29_broccoli.png', '30_wine_glass.png',
+    '31_baseball.png', '32_silly_string.png', '33_gold_bond.png',
+    '34_glow_stick.png', '35_unbreakable_toy.png', '36_seashell.png',
+    '37_train.png', '38_squishy_dumpling.png', '39_jawbreaker.png',
+    '40_lemon_squishy.png', '41_rug.png', '42_old_boot.png',
+    '43_chicken.png', '44_keyboard.png', '45_ice_cream.png',
+    '46_ramen_noodles.png', '47_tape_measure.png'
+  ];
 
   let initialized = false;
   let running = false;
   let score = 0;
+  let boostUntil = 0;
   let worm = [];
   let angle = 0;
   let targetAngle = 0;
-  let fruits = [];
+  let items = [];
+  let pickupTexts = [];
+  let planerSprite = null;
+  let itemSprites = [];
+  let spriteErrors = 0;
+  let spritesLoaded = false;
   let keys = {};
   let touchTarget = null;
   let animId = null;
-  let roughOk = false;
-  let headSprite = null;
-  let bodySprite = null;
-  const WORM_SPRITE_SIZE = SEGMENT_SIZE * 2 + 12;
 
   let canvas, ctx, toggleBtn, hud, scoreEl, debugEl, shield;
   let highDpiScale = 1;
@@ -179,16 +205,16 @@
     toggleBtn = document.createElement('button');
     toggleBtn.id = NS + '-toggle';
     toggleBtn.type = 'button';
-    toggleBtn.setAttribute('aria-label', 'Start worm game');
+    toggleBtn.setAttribute('aria-label', 'Start planer game');
     toggleBtn.setAttribute('aria-pressed', 'false');
-    toggleBtn.setAttribute('data-tooltip', 'Play Worm Game');
+    toggleBtn.setAttribute('data-tooltip', 'Play Planer Game');
     toggleBtn.setAttribute('data-position', position);
-    toggleBtn.textContent = '🐛';
+    toggleBtn.textContent = '🪚';
     document.body.appendChild(toggleBtn);
 
     hud = document.createElement('div');
     hud.id = NS + '-hud';
-    hud.innerHTML = 'Score: <span></span>';
+    hud.innerHTML = 'Items planed: <span></span>';
     document.body.appendChild(hud);
     scoreEl = hud.querySelector('span');
 
@@ -211,60 +237,33 @@
     });
   }
 
-  function loadRough(callback) {
-    if (window.rough && typeof window.rough.canvas === 'function') {
-      callback(true);
-      return;
-    }
-
-    const existing = document.querySelector('script[data-wip-worm-rough]');
-    if (!existing) {
-      const script = document.createElement('script');
-      script.src = ROUGH_CDN_URL;
-      script.setAttribute('data-wip-worm-rough', '1');
-      script.onload = () => callback(true);
-      script.onerror = () => callback(false);
-      document.head.appendChild(script);
-    }
-
-    let attempts = 0;
-    const maxAttempts = 60;
-    const timer = setInterval(function () {
-      attempts++;
-      if (window.rough && typeof window.rough.canvas === 'function') {
-        clearInterval(timer);
-        callback(true);
-        return;
-      }
-      if (attempts >= maxAttempts) {
-        clearInterval(timer);
-        callback(false);
-      }
-    }, 100);
+  function loadImage(path, onError) {
+    const image = new Image();
+    image.onload = () => {
+      image.loaded = true;
+    };
+    image.onerror = () => {
+      spriteErrors++;
+      if (onError) onError();
+    };
+    image.src = new URL(path, SPRITE_ROOT).href;
+    return image;
   }
 
-  function makeSpriteCanvas(size, drawFn) {
-    const off = document.createElement('canvas');
-    off.width = size;
-    off.height = size;
-    const rc = window.rough.canvas(off);
-    drawFn(rc, size);
-    return off;
+  function loadSprites() {
+    if (spritesLoaded) return;
+    spritesLoaded = true;
+    planerSprite = loadImage('planer_sprites/128px/planer_right.png', reportSpriteError);
+    itemSprites = ITEM_SPRITE_FILES.map((file) => ({
+      file,
+      image: loadImage(`item_sprites/128px/${file}`, reportSpriteError)
+    }));
   }
 
-  function buildWormSprites() {
-    headSprite = makeSpriteCanvas(WORM_SPRITE_SIZE, (rc, s) => {
-      rc.circle(s / 2, s / 2, SEGMENT_SIZE, {
-        fill: '#1a7f37', fillStyle: 'solid', stroke: '#12592a',
-        strokeWidth: 1.5, roughness: 1.4, seed: 1
-      });
-    });
-    bodySprite = makeSpriteCanvas(WORM_SPRITE_SIZE, (rc, s) => {
-      rc.circle(s / 2, s / 2, SEGMENT_SIZE, {
-        fill: '#2fae5c', fillStyle: 'solid', stroke: '#12592a',
-        strokeWidth: 1.5, roughness: 1.4, seed: 2
-      });
-    });
+  function reportSpriteError() {
+    if (running) {
+      showDebug(`${spriteErrors} game sprite${spriteErrors === 1 ? '' : 's'} could not load.`);
+    }
   }
 
   function showDebug(msg) {
@@ -294,36 +293,29 @@
     targetAngle = 0;
   }
 
-  function spawnFruit() {
+  function spawnItem() {
     const margin = 40;
     const x = margin + Math.random() * (window.innerWidth - margin * 2);
     const y = margin + Math.random() * (window.innerHeight - margin * 2);
-    const hue = Math.floor(Math.random() * 360);
-    const seed = Math.floor(Math.random() * 1000);
-    const size = FRUIT_RADIUS * 2 + 12;
-    const sprite = roughOk ? makeSpriteCanvas(size, (rc, s) => {
-      rc.circle(s / 2, s / 2, FRUIT_RADIUS * 2, {
-        fill: `hsl(${hue}, 70%, 55%)`,
-        fillStyle: 'hachure',
-        fillWeight: 1.5,
-        hachureGap: 3,
-        stroke: `hsl(${hue}, 60%, 35%)`,
-        strokeWidth: 1.5,
-        roughness: 1.8,
-        seed: seed
-      });
-    }) : null;
-    return { x, y, hue, seed, sprite, spriteSize: size };
+    const usedFiles = new Set(items.map((item) => item.file));
+    const available = itemSprites.filter((sprite) => !usedFiles.has(sprite.file));
+    const sprite = available[Math.floor(Math.random() * available.length)];
+    const name = sprite.file.replace(/^\d+_/, '').replace(/\.png$/, '').split('_')
+      .map((word) => word === 'vhs' ? 'VHS' : word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    return { x, y, file: sprite.file, image: sprite.image, name };
   }
 
-  function fillFruits() {
-    while (fruits.length < FRUIT_COUNT) {
-      fruits.push(spawnFruit());
+  function fillItems() {
+    while (items.length < ITEM_COUNT) {
+      items.push(spawnItem());
     }
   }
 
   function currentSpeed() {
-    return Math.min(BASE_SPEED + score * 0.06, MAX_SPEED);
+    const normalSpeed = Math.min(BASE_SPEED + score * SPEED_PER_ITEM, MAX_SPEED);
+    const boostRemaining = Math.max(0, boostUntil - performance.now());
+    return normalSpeed + EAT_BOOST * boostRemaining / EAT_BOOST_DURATION;
   }
 
   function update() {
@@ -359,16 +351,18 @@
     worm.unshift({ x: newX, y: newY });
     worm.pop();
 
-    for (let i = fruits.length - 1; i >= 0; i--) {
-      const f = fruits[i];
-      const dx = f.x - newX;
-      const dy = f.y - newY;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i];
+      const dx = item.x - newX;
+      const dy = item.y - newY;
       if (Math.sqrt(dx * dx + dy * dy) < EAT_DISTANCE) {
-        fruits.splice(i, 1);
+        items.splice(i, 1);
         score++;
+        pickupTexts.push({ x: item.x, y: item.y, name: item.name, started: performance.now() });
+        boostUntil = performance.now() + EAT_BOOST_DURATION;
         scoreEl.textContent = score;
         const tail = worm[worm.length - 1];
-        for (let g = 0; g < GROWTH_PER_FRUIT; g++) {
+        for (let g = 0; g < GROWTH_PER_ITEM; g++) {
           worm.push({ x: tail.x, y: tail.y });
         }
       }
@@ -384,34 +378,140 @@
       }
     }
 
-    fillFruits();
+    fillItems();
+  }
+
+  function drawShavingsTrail() {
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (let i = worm.length - 1; i > 0; i--) {
+      const tail = worm[i];
+      const next = worm[i - 1];
+      if (Math.hypot(next.x - tail.x, next.y - tail.y) > 30) {
+        ctx.moveTo(tail.x, tail.y);
+        continue;
+      }
+      if (i === worm.length - 1 || Math.hypot(worm[i + 1].x - tail.x, worm[i + 1].y - tail.y) > 30) {
+        ctx.moveTo(tail.x, tail.y);
+      }
+      ctx.lineTo(next.x, next.y);
+    }
+    ctx.strokeStyle = 'rgba(107, 62, 28, 0.72)';
+    ctx.lineWidth = 13;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(199, 139, 67, 0.96)';
+    ctx.lineWidth = 9;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255, 222, 164, 0.72)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    for (let i = 6; i < worm.length; i += 6) {
+      const seg = worm[i];
+      const curl = (i * 2.399) % (Math.PI * 2);
+      const offset = (i % 3 - 1) * 3;
+      ctx.beginPath();
+      ctx.moveTo(seg.x + Math.cos(curl) * offset, seg.y + Math.sin(curl) * offset);
+      ctx.quadraticCurveTo(
+        seg.x + Math.cos(curl + 0.9) * 7,
+        seg.y + Math.sin(curl + 0.9) * 7,
+        seg.x + Math.cos(curl + 1.8) * 3,
+        seg.y + Math.sin(curl + 1.8) * 3
+      );
+      ctx.strokeStyle = 'rgba(255, 226, 174, 0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  function drawFallbackPlaner(x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.fillStyle = '#b8793e';
+    ctx.strokeStyle = '#57371f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-PLANER_SIZE / 2 + 8, -PLANER_SIZE / 3);
+    ctx.lineTo(PLANER_SIZE / 2 - 8, -PLANER_SIZE / 3);
+    ctx.quadraticCurveTo(PLANER_SIZE / 2, -PLANER_SIZE / 3, PLANER_SIZE / 2, -PLANER_SIZE / 3 + 8);
+    ctx.lineTo(PLANER_SIZE / 2, PLANER_SIZE / 3 - 8);
+    ctx.quadraticCurveTo(PLANER_SIZE / 2, PLANER_SIZE / 3, PLANER_SIZE / 2 - 8, PLANER_SIZE / 3);
+    ctx.lineTo(-PLANER_SIZE / 2 + 8, PLANER_SIZE / 3);
+    ctx.quadraticCurveTo(-PLANER_SIZE / 2, PLANER_SIZE / 3, -PLANER_SIZE / 2, PLANER_SIZE / 3 - 8);
+    ctx.lineTo(-PLANER_SIZE / 2, -PLANER_SIZE / 3 + 8);
+    ctx.quadraticCurveTo(-PLANER_SIZE / 2, -PLANER_SIZE / 3, -PLANER_SIZE / 2 + 8, -PLANER_SIZE / 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#f2d5a5';
+    ctx.fillRect(-PLANER_SIZE / 3, -PLANER_SIZE / 2, PLANER_SIZE * 2 / 3, 9);
+    ctx.restore();
+  }
+
+  function drawPickupTexts() {
+    const now = performance.now();
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    pickupTexts = pickupTexts.filter((pickup) => now - pickup.started < PICKUP_TEXT_DURATION);
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    pickupTexts.forEach((pickup) => {
+      const progress = Math.max(0, (now - pickup.started) / PICKUP_TEXT_DURATION);
+      const rise = reducedMotion ? 0 : 35 * (1 - (1 - progress) ** 2);
+      const y = Math.max(24, Math.min(window.innerHeight - 22, pickup.y - 20 - rise));
+      const maxWidth = Math.max(1, window.innerWidth - 16);
+      ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      const width = Math.min(maxWidth, Math.max(ctx.measureText(pickup.name).width, 40));
+      const x = Math.max(width / 2 + 8, Math.min(window.innerWidth - width / 2 - 8, pickup.x));
+      ctx.globalAlpha = progress < 0.65 ? 1 : (1 - progress) / 0.35;
+      ctx.strokeStyle = 'rgba(25, 16, 9, 0.95)';
+      ctx.lineWidth = 4;
+      ctx.strokeText(pickup.name, x, y + 20, maxWidth);
+      ctx.fillStyle = '#fff1d2';
+      ctx.fillText(pickup.name, x, y + 20, maxWidth);
+      ctx.font = 'bold 25px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.strokeText('+1', x, y, maxWidth);
+      ctx.fillStyle = '#ffc04f';
+      ctx.fillText('+1', x, y, maxWidth);
+    });
+    ctx.restore();
   }
 
   function draw() {
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
-    if (roughOk) {
-      fruits.forEach(f => {
-        ctx.drawImage(f.sprite, f.x - f.spriteSize / 2, f.y - f.spriteSize / 2);
-      });
-      worm.forEach((seg, i) => {
-        const sprite = i === 0 ? headSprite : bodySprite;
-        ctx.drawImage(sprite, seg.x - WORM_SPRITE_SIZE / 2, seg.y - WORM_SPRITE_SIZE / 2);
-      });
+    drawShavingsTrail();
+    items.forEach((item) => {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+      ctx.shadowBlur = 7;
+      ctx.shadowOffsetY = 3;
+      if (item.image.loaded) {
+        ctx.drawImage(item.image, item.x - ITEM_SIZE / 2, item.y - ITEM_SIZE / 2, ITEM_SIZE, ITEM_SIZE);
+      } else {
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, ITEM_SIZE / 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#e0ad68';
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+
+    const head = worm[0];
+    if (planerSprite && planerSprite.loaded) {
+      ctx.save();
+      ctx.translate(head.x, head.y);
+      ctx.rotate(angle);
+      ctx.drawImage(planerSprite, -PLANER_SIZE / 2, -PLANER_SIZE / 2, PLANER_SIZE, PLANER_SIZE);
+      ctx.restore();
     } else {
-      fruits.forEach(f => {
-        ctx.beginPath();
-        ctx.arc(f.x, f.y, FRUIT_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = `hsl(${f.hue}, 70%, 55%)`;
-        ctx.fill();
-      });
-      worm.forEach((seg, i) => {
-        ctx.beginPath();
-        ctx.arc(seg.x, seg.y, SEGMENT_SIZE / 2, 0, Math.PI * 2);
-        ctx.fillStyle = i === 0 ? '#1a7f37' : '#2fae5c';
-        ctx.fill();
-      });
+      drawFallbackPlaner(head.x, head.y);
     }
+    drawPickupTexts();
   }
 
   function loop() {
@@ -426,27 +526,32 @@
   }
 
   function startGame() {
+    loadSprites();
     running = true;
     score = 0;
+    boostUntil = 0;
+    pickupTexts = [];
     scoreEl.textContent = 0;
     debugEl.style.display = 'none';
+    if (spriteErrors) reportSpriteError();
     joystick = null;
     resizeCanvas();
     resetWorm();
-    fruits = [];
-    fillFruits();
+    items = [];
+    fillItems();
     canvas.style.display = 'block';
     shield.setAttribute('data-active', 'true');
     hud.style.display = 'block';
     toggleBtn.setAttribute('aria-pressed', 'true');
-    toggleBtn.setAttribute('aria-label', 'Stop worm game');
-    toggleBtn.setAttribute('data-tooltip', 'Stop Worm Game');
+    toggleBtn.setAttribute('aria-label', 'Stop planer game');
+    toggleBtn.setAttribute('data-tooltip', 'Stop Planer Game');
     toggleBtn.textContent = '✕';
     loop();
   }
 
   function stopGame() {
     running = false;
+    pickupTexts = [];
     touchTarget = null;
     joystick = null;
     cancelAnimationFrame(animId);
@@ -455,9 +560,9 @@
     shield.setAttribute('data-active', 'false');
     hud.style.display = 'none';
     toggleBtn.setAttribute('aria-pressed', 'false');
-    toggleBtn.setAttribute('aria-label', 'Start worm game');
-    toggleBtn.setAttribute('data-tooltip', 'Play Worm Game');
-    toggleBtn.textContent = '🐛';
+    toggleBtn.setAttribute('aria-label', 'Start planer game');
+    toggleBtn.setAttribute('data-tooltip', 'Play Planer Game');
+    toggleBtn.textContent = '🪚';
   }
 
   function preventAndStop(e) {
@@ -545,12 +650,6 @@
     createDOM(position);
     attachGlobalListeners();
 
-    loadRough(function (ok) {
-      roughOk = ok;
-      if (ok) {
-        buildWormSprites();
-      }
-    });
   }
 
   window.WormGame = {
